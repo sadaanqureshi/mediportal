@@ -13,32 +13,89 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 // Background logic
-messaging.onBackgroundMessage((payload) => {
-  console.log('[firebase-messaging-sw.js] Received background message ', payload);
+// messaging.onBackgroundMessage((payload) => {
+//   console.log('[firebase-messaging-sw.js] Received background message ', payload);
   
-  // 🔥 FIX: Check both data and notification blocks for title/body
-  const notificationTitle = payload.data?.title || payload.notification?.title || '🩺 AI Diagnostic Alert';
+//   // 🔥 FIX: Check both data and notification blocks for title/body
+//   const notificationTitle = payload.data?.title || payload.notification?.title || '🩺 AI Diagnostic Alert';
+//   const notificationOptions = {
+//     body: payload.data?.body || payload.notification?.body || 'New patient report update available.',
+//     icon: '/favicon.ico', 
+//     requireInteraction: true, // 🔥 Yeh OS ko force karega screen par dikhane ke liye
+//     data: payload.data || {}
+//   };
+
+//   return self.registration.showNotification(notificationTitle, notificationOptions);
+// });
+
+
+//claude fix
+// ✅ Add this debug log first to confirm SW is receiving the message
+messaging.onBackgroundMessage((payload) => {
+  console.log('[SW] Background message received:', payload);
+
+  const notificationTitle = payload.data?.title || '🩺 AI Diagnostic Alert';
   const notificationOptions = {
-    body: payload.data?.body || payload.notification?.body || 'New patient report update available.',
-    icon: '/favicon.ico', 
-    requireInteraction: true, // 🔥 Yeh OS ko force karega screen par dikhane ke liye
-    data: payload.data || {}
+    body: payload.data?.body || 'New patient report update available.',
+    icon: '/favicon.ico',
+    requireInteraction: true,
+    // ✅ CRITICAL: Pass ALL data fields here so notificationclick can read them
+    data: {
+      patientId: payload.data?.patientId,
+      reportId: payload.data?.reportId,
+      patientName: payload.data?.patientName,
+      modelName: payload.data?.modelName,
+    }
   };
 
+  // ✅ Must return the promise
   return self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
-self.addEventListener('notificationclick', (event) => {
-  console.log('[firebase-messaging-sw.js] Notification clicked!', event.notification.data);
-  event.notification.close(); 
+// self.addEventListener('notificationclick', (event) => {
+//   console.log('[firebase-messaging-sw.js] Notification clicked!', event.notification.data);
+//   event.notification.close(); 
 
-  const urlToOpen = self.location.origin + '/doctor/dashboard'; 
+//   const urlToOpen = self.location.origin + '/doctor/dashboard'; 
+
+//   event.waitUntil(
+//     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+//       for (let i = 0; i < windowClients.length; i++) {
+//         const client = windowClients[i];
+//         if (client.url.includes(self.location.origin) && 'focus' in client) {
+//           return client.focus();
+//         }
+//       }
+//       if (clients.openWindow) {
+//         return clients.openWindow(urlToOpen);
+//       }
+//     })
+//   );
+// });
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  // ✅ Read patientId and reportId from notification data
+  const data = event.notification.data || {};
+  const patientId = data.patientId;
+  const reportId = data.reportId;
+
+  let urlToOpen = self.location.origin + '/doctor/notifications'; // default fallback
+
+  if (patientId && reportId) {
+    // Deep link directly — or use notifications page so modal can open
+    urlToOpen = self.location.origin + `/doctor/notifications?patientId=${patientId}&reportId=${reportId}`;
+  } else if (patientId) {
+    urlToOpen = self.location.origin + `/doctor/patient/${patientId}`;
+  }
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
       for (let i = 0; i < windowClients.length; i++) {
         const client = windowClients[i];
         if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.navigate(urlToOpen); // ✅ Navigate to correct URL
           return client.focus();
         }
       }

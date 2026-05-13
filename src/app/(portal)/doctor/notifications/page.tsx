@@ -5,7 +5,7 @@ import Header from '@/components/layout/Header';
 import { AlertCircle, Bell, Trash2 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/lib/store/store';
-import { useRouter } from 'next/navigation'; // <-- NEW: Router zaroori hai agar patient page par jana ho
+import { useRouter, useSearchParams } from 'next/navigation'; // <-- NEW: Router zaroori hai agar patient page par jana ho
 import NotificationModal from '@/components/ui/NotificationModal';
 
 interface NotificationItem {
@@ -20,8 +20,10 @@ interface NotificationItem {
   reportId?: string; // <-- NEW: Added in interface
 }
 
+
 export default function Notifications() {
   const router = useRouter(); // <-- NEW
+  const searchParams = useSearchParams(); // from next/navigation
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [selectedNotif, setSelectedNotif] = useState<any>(null); // State for modal
@@ -38,6 +40,19 @@ export default function Notifications() {
       if (saved) setNotifications(JSON.parse(saved));
     }
   };
+
+  // At the top of your Notifications component
+
+useEffect(() => {
+  const patientId = searchParams.get('patientId');
+  const reportId = searchParams.get('reportId');
+  
+  if (patientId && reportId) {
+    // Find matching notification or construct a minimal one to open modal
+    const match = notifications.find(n => n.reportId === reportId);
+    if (match) setSelectedNotif(match);
+  }
+}, [searchParams, notifications]);
 
   useEffect(() => {
     loadNotifications();
