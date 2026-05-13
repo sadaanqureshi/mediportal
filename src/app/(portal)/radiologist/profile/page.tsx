@@ -238,7 +238,7 @@ export default function RadiologistProfile() {
         <GenericFormModal
             isOpen={isProfileModalOpen}
             onClose={() => setIsProfileModalOpen(false)}
-            initialData={userData} // form khulte hi purana data pre-fill ho jayega
+            initialData={userData} 
             title="Edit Personal Information"
             fields={profileFields}
             onSubmit={handleProfileUpdate}
@@ -247,7 +247,7 @@ export default function RadiologistProfile() {
 
         <GenericFormModal
             isOpen={isPasswordModalOpen}
-            initialData={{}} // password modal empty khulna chahiye
+            initialData={{}} 
             onClose={() => setIsPasswordModalOpen(false)}
             title="Change Password"
             fields={passwordFields}

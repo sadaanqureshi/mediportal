@@ -5,6 +5,8 @@ import Header from '@/components/layout/Header';
 import { AlertCircle, Bell, Trash2 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/lib/store/store';
+import { useRouter } from 'next/navigation'; // <-- NEW: Router zaroori hai agar patient page par jana ho
+import NotificationModal from '@/components/ui/NotificationModal';
 
 interface NotificationItem {
   id: string;
@@ -12,11 +14,17 @@ interface NotificationItem {
   desc: string;
   time: string;
   type: string;
+  patientId?: string; // <-- NEW: Added in interface
+  patientName?: string; // <-- NEW: Added in interface
+  modelName?: string; // <-- NEW: Added in interface
+  reportId?: string; // <-- NEW: Added in interface
 }
 
 export default function Notifications() {
+  const router = useRouter(); // <-- NEW
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [selectedNotif, setSelectedNotif] = useState<any>(null); // State for modal
   
   // Current user nikalo taake uski hi list khule
   const { user } = useSelector((state: RootState) => state.auth);
@@ -80,7 +88,19 @@ export default function Notifications() {
                 </div>
             ) : (
                 notifications.map((notif) => (
-                    <div key={notif.id} className="group bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm flex gap-5 transition-all duration-300 hover:shadow-md">
+                    <div 
+                      key={notif.id} 
+                      // 🔥 YAHAN ONCLICK LAGA DIYA
+                      onClick={() => {
+                        if(notif.patientId && notif.modelName && notif.reportId) {
+                           setSelectedNotif(notif);
+                        } else if (notif.patientId) {
+                           // Agar simple notification ho to direct patient profile par le jao
+                           router.push(`/doctor/patient/${notif.patientId}`);
+                        }
+                      }}
+                      className="group bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm flex gap-5 transition-all duration-300 hover:shadow-md cursor-pointer"
+                    >
                         <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border text-indigo-600 bg-indigo-50 border-indigo-100 transition-transform group-hover:scale-105">
                             <AlertCircle size={22} />
                         </div>
@@ -99,6 +119,23 @@ export default function Notifications() {
                 ))
             )}
         </div>
+
+        {/* 🔥 MODAL ADD KAR DIYA YAHAN PAR */}
+        {/* 🔥 MODAL ADD KAR DIYA YAHAN PAR */}
+        <NotificationModal 
+           isOpen={!!selectedNotif}
+           onClose={() => setSelectedNotif(null)}
+           reportId={selectedNotif?.reportId || null}
+           patientId={selectedNotif?.patientId || null}
+           patientName={selectedNotif?.patientName || null}
+           // Backend se aaye hue modelName ko normalize kar rahe hain
+           modelName={
+             selectedNotif?.modelName?.includes('Cardio') ? 'Cardiovascular' : 
+             selectedNotif?.modelName?.includes('Stroke') ? 'Stroke' : 
+             'CADICA'
+           }
+        />
+        
       </main>
     </div>
   );

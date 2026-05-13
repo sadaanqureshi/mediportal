@@ -7,7 +7,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '@/lib/store/store';
 import { 
   Activity, BrainCircuit, HeartPulse, Video, ArrowLeft, 
-  User, FileText, AlertCircle, CheckCircle2, Loader2, ClipboardList, Image as ImageIcon, Search, Layers, Film, Percent, Calendar
+  FileText, AlertCircle, CheckCircle2, Loader2, ClipboardList, 
+  Image as ImageIcon, Search, Layers, Film, Percent, Calendar, ShieldCheck
 } from 'lucide-react';
 
 import { 
@@ -19,7 +20,7 @@ import {
   fetchPatientStrokeHistoryThunk,
   fetchPatientCadicaHistoryThunk
 } from '@/lib/store/features/doctorSlice';
-import { doctorGetPrediction } from '@/services/apiService';
+import { getCardioReportDetails } from '@/services/apiService'; // 🔥 Changed to Cardio Report API
 import toast from 'react-hot-toast';
 
 export default function PatientDetailsPage() {
@@ -31,12 +32,10 @@ export default function PatientDetailsPage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('ocr');
 
-  // --- DROPDOWN SELECTION STATES ---
   const [selectedOcrId, setSelectedOcrId] = useState<number | null>(null);
   const [selectedStrokeId, setSelectedStrokeId] = useState<number | null>(null);
   const [selectedCadicaId, setSelectedCadicaId] = useState<number | null>(null);
 
-  // --- API Loading & Data States ---
   const [ocrData, setOcrData] = useState<any>(null); 
   const [isOcrLoading, setIsOcrLoading] = useState(false); 
 
@@ -60,13 +59,13 @@ export default function PatientDetailsPage() {
 
   const patient = patients.find(p => p.id === patientId || (p as any).patientid === patientId);
 
-  // Helper function to format date nicely
   const formatDate = (dateString: string) => {
+    if (!dateString) return '';
     return new Date(dateString).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
   // ==========================================
-  // 1. OCR DATA LOGIC (WITH HISTORY)
+  // 1. OCR DATA LOGIC 
   // ==========================================
   useEffect(() => {
     if (activeTab === 'ocr' && patientId) {
@@ -76,7 +75,7 @@ export default function PatientDetailsPage() {
 
   useEffect(() => {
     if (activeTab === 'ocr' && ocrHistory?.length > 0 && !selectedOcrId) {
-      setSelectedOcrId(ocrHistory[0].reportid); // Auto-select latest
+      setSelectedOcrId(ocrHistory[0].reportid);
     }
   }, [activeTab, ocrHistory, selectedOcrId]);
 
@@ -85,7 +84,8 @@ export default function PatientDetailsPage() {
       if (selectedOcrId) {
         setIsOcrLoading(true);
         try {
-          const response = await doctorGetPrediction(selectedOcrId);
+          // 🔥 Nayi API call jo NLP data bhi layegi
+          const response = await getCardioReportDetails(selectedOcrId);
           setOcrData(response);
         } catch (error: any) {
           toast.error(error?.message || "Failed to load OCR data");
@@ -100,12 +100,14 @@ export default function PatientDetailsPage() {
   const activeOcrReport = ocrHistory?.find(r => r.reportid === selectedOcrId);
   const aiDetails = ocrData?.aiResult || activeOcrReport?.aiResult;
   const displayFeatures = ocrData?.feature || activeOcrReport?.feature;
+  const nlpDetails = ocrData?.cardioNlpResult; // 🔥 NLP Data Extraction
+
   const displayPrediction = aiDetails?.prediction;
   const ocrConfidenceScore = aiDetails?.probability;
   const riskText = aiDetails?.classification ? aiDetails.classification.toUpperCase() : 'NO DATA';
 
   // ==========================================
-  // 2. STROKE DATA LOGIC (WITH HISTORY)
+  // 2. STROKE DATA LOGIC
   // ==========================================
   useEffect(() => {
     if (activeTab === 'stroke' && patientId) {
@@ -115,7 +117,7 @@ export default function PatientDetailsPage() {
 
   useEffect(() => {
     if (activeTab === 'stroke' && strokeHistory?.length > 0 && !selectedStrokeId) {
-      setSelectedStrokeId(strokeHistory[0].strokereportid); // Auto-select latest
+      setSelectedStrokeId(strokeHistory[0].strokereportid); 
     }
   }, [activeTab, strokeHistory, selectedStrokeId]);
 
@@ -137,7 +139,7 @@ export default function PatientDetailsPage() {
   }, [activeTab, selectedStrokeId, dispatch]);
 
   // ==========================================
-  // 3. CADICA DATA LOGIC (WITH HISTORY)
+  // 3. CADICA DATA LOGIC
   // ==========================================
   useEffect(() => {
     if (activeTab === 'cadica' && patientId) {
@@ -147,7 +149,7 @@ export default function PatientDetailsPage() {
 
   useEffect(() => {
     if (activeTab === 'cadica' && cadicaHistory?.length > 0 && !selectedCadicaId) {
-      setSelectedCadicaId(cadicaHistory[0].cadicavideoreportid); // Auto-select latest
+      setSelectedCadicaId(cadicaHistory[0].cadicavideoreportid); 
     }
   }, [activeTab, cadicaHistory, selectedCadicaId]);
 
@@ -178,7 +180,6 @@ export default function PatientDetailsPage() {
     );
   }
 
-  // --- Rendering Variables ---
   const strokeResult = strokeData?.strokeResult || strokeData?.modelResult;
   const isStrokeDetected = strokeResult?.prediction && strokeResult.prediction !== "No Stroke";
   const strokeColorText = isStrokeDetected ? "text-rose-600" : "text-emerald-600";
@@ -227,7 +228,7 @@ export default function PatientDetailsPage() {
         <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-100 min-h-[500px]">
             
           {/* ========================================================= */}
-          {/* TAB 1: OCR CONTENT (CARDIOVASCULAR) */}
+          {/* TAB 1: OCR CONTENT */}
           {/* ========================================================= */}
           {activeTab === 'ocr' && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -236,18 +237,17 @@ export default function PatientDetailsPage() {
                    <Activity className="text-indigo-500" /> Cardiovascular Risk Analysis
                  </h3>
                  
-                 {/* HISTORY DROPDOWN */}
                  {ocrHistory && ocrHistory.length > 0 && (
                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
                       <Calendar size={16} className="text-slate-400" />
                       <select 
                         value={selectedOcrId || ''} 
                         onChange={(e) => setSelectedOcrId(Number(e.target.value))}
-                        className="bg-transparent text-sm font-medium text-slate-700 outline-none cursor-pointer"
+                        className="bg-transparent text-sm font-medium text-slate-700 outline-none cursor-pointer w-full max-w-[200px]"
                       >
                         {ocrHistory.map((report: any) => (
                           <option key={report.reportid} value={report.reportid}>
-                            {formatDate(report.uploadedat)} - {report.filename.substring(0, 15)}...
+                            {formatDate(report.uploadedat)} {report.filename ? `- ${report.filename.substring(0, 15)}...` : ''}
                           </option>
                         ))}
                       </select>
@@ -258,72 +258,142 @@ export default function PatientDetailsPage() {
                {isOcrLoading ? (
                  <div className="flex flex-col items-center justify-center p-12 gap-4">
                    <Loader2 className="animate-spin text-indigo-600" size={40} />
-                   <p className="text-slate-500 font-medium">Fetching historical data...</p>
+                   <p className="text-slate-500 font-medium">Fetching advanced insights...</p>
                  </div>
                ) : !activeOcrReport ? (
                  <div className="p-10 border-2 border-dashed border-slate-200 rounded-xl text-center">
                     <p className="text-slate-500">No OCR report uploaded for this patient yet.</p>
                  </div>
                ) : (
-                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    <div className="lg:col-span-5 space-y-6">
-                      <div className="bg-slate-50 rounded-xl p-5 border border-slate-100">
-                        <h4 className="font-semibold text-slate-800 mb-4 flex items-center gap-2"><FileText size={18} /> Document Details</h4>
-                        <div className="text-sm space-y-3">
-                           <div className="flex justify-between border-b border-slate-200 pb-2"><span className="text-slate-500">File Name</span><span className="font-medium text-indigo-600 break-all">{activeOcrReport.filename}</span></div>
-                          <div>
-                            <span className="text-slate-500 block mb-1">Radiologist Comments:</span>
-                            <p className="bg-white p-3 rounded-lg border border-slate-200 text-slate-700 italic">{activeOcrReport.comment || 'No comments available.'}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="lg:col-span-7 space-y-6">
-                      <div className={`rounded-xl p-6 border ${displayPrediction === 1 ? 'bg-red-50 border-red-200' : displayPrediction === 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
-                        <h4 className={`font-bold mb-2 flex items-center gap-2 ${displayPrediction === 1 ? 'text-red-800' : displayPrediction === 0 ? 'text-emerald-800' : 'text-slate-700'}`}>
-                          {displayPrediction === 1 ? <AlertCircle size={24} /> : <CheckCircle2 size={24} />} AI Risk Classification
-                        </h4>
-                        <div className="mt-4 flex items-center justify-between">
-                          <span className="text-sm font-medium opacity-80">Risk Assessment:</span>
-                          <span className={`text-3xl font-black tracking-tight ${displayPrediction === 1 ? 'text-red-600' : displayPrediction === 0 ? 'text-emerald-600' : 'text-slate-500'}`}>{riskText}</span>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-                            <div className="flex justify-between items-center text-sm mb-4">
-                                <span className="text-slate-600 font-semibold flex items-center gap-1.5"><BrainCircuit size={16}/> AI Confidence</span>
-                                <span className="font-bold text-slate-800 text-lg">{ocrConfidenceScore !== undefined ? `${(ocrConfidenceScore * 100).toFixed(1)}%` : 'N/A'}</span>
-                            </div>
-                            {ocrConfidenceScore !== undefined && (
-                              <div className="w-full bg-slate-100 rounded-full h-2 mb-4">
-                                  <div className={`h-2 rounded-full ${displayPrediction === 1 ? 'bg-red-500' : 'bg-emerald-500'}`} style={{ width: `${ocrConfidenceScore * 100}%` }}></div>
+                 <div className="space-y-8">
+                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        <div className="lg:col-span-5 space-y-6">
+                          <div className="bg-slate-50 rounded-xl p-5 border border-slate-100">
+                            <h4 className="font-semibold text-slate-800 mb-4 flex items-center gap-2"><FileText size={18} /> Document Details</h4>
+                            <div className="text-sm space-y-3">
+                               <div className="flex justify-between border-b border-slate-200 pb-2"><span className="text-slate-500">File Name</span><span className="font-medium text-indigo-600 break-all">{activeOcrReport.filename}</span></div>
+                              <div>
+                                <span className="text-slate-500 block mb-1">Radiologist Comments:</span>
+                                <p className="bg-white p-3 rounded-lg border border-slate-200 text-slate-700 italic">{activeOcrReport.comment || 'No comments available.'}</p>
                               </div>
-                            )}
+                            </div>
                           </div>
-                          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-center">
-                             <span className="text-slate-600 font-semibold flex items-center gap-1.5 mb-2"><ClipboardList size={16}/> Clinical Remarks</span>
-                             <p className={`text-sm font-medium leading-relaxed ${displayPrediction === 1 ? 'text-red-700' : 'text-emerald-700'}`}>{aiDetails?.remarks || "No additional remarks generated."}</p>
+                          
+                          {displayFeatures && (
+                            <div className="bg-slate-50 rounded-xl border border-slate-100 p-5">
+                              <h4 className="font-semibold text-slate-800 mb-4 flex items-center gap-2"><HeartPulse size={18} className="text-indigo-500" /> Key Vitals Extracted</h4>
+                              <div className="grid grid-cols-2 gap-3 text-sm">
+                                <div className="bg-white p-3 rounded-lg border border-slate-200 text-center"><span className="block text-slate-500 text-xs mb-1">Systolic BP</span><span className="font-bold text-slate-800 text-lg">{displayFeatures.ap_hi || 'N/A'}</span></div>
+                                <div className="bg-white p-3 rounded-lg border border-slate-200 text-center"><span className="block text-slate-500 text-xs mb-1">Diastolic BP</span><span className="font-bold text-slate-800 text-lg">{displayFeatures.ap_lo || 'N/A'}</span></div>
+                                <div className="bg-white p-3 rounded-lg border border-slate-200 text-center"><span className="block text-slate-500 text-xs mb-1">Cholesterol</span><span className="font-bold text-slate-800 text-lg">{displayFeatures.cholesterol || 'N/A'}</span></div>
+                                <div className="bg-white p-3 rounded-lg border border-slate-200 text-center"><span className="block text-slate-500 text-xs mb-1">Glucose</span><span className="font-bold text-slate-800 text-lg">{displayFeatures.gluc || 'N/A'}</span></div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="lg:col-span-7 space-y-6">
+                          <div className={`rounded-xl p-6 border ${displayPrediction === 1 ? 'bg-red-50 border-red-200' : displayPrediction === 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
+                            <h4 className={`font-bold mb-2 flex items-center gap-2 ${displayPrediction === 1 ? 'text-red-800' : displayPrediction === 0 ? 'text-emerald-800' : 'text-slate-700'}`}>
+                              {displayPrediction === 1 ? <AlertCircle size={24} /> : <CheckCircle2 size={24} />} Overall AI Risk Classification
+                            </h4>
+                            <div className="mt-4 flex items-center justify-between">
+                              <span className="text-sm font-medium opacity-80">Verdict:</span>
+                              <span className={`text-3xl font-black tracking-tight ${displayPrediction === 1 ? 'text-red-600' : displayPrediction === 0 ? 'text-emerald-600' : 'text-slate-500'}`}>{riskText}</span>
+                            </div>
                           </div>
-                      </div>
-                      {displayFeatures && (
-                        <div className="bg-slate-50 rounded-xl border border-slate-100 p-4">
-                          <h4 className="font-semibold text-slate-700 text-sm flex items-center gap-2 mb-3"><HeartPulse size={16} /> Key Vitals Extracted</h4>
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                            <div className="bg-white p-2 rounded-lg border border-slate-100 text-center"><span className="block text-slate-400 text-xs">Systolic</span><span className="font-bold text-slate-800">{displayFeatures.ap_hi || 'N/A'}</span></div>
-                            <div className="bg-white p-2 rounded-lg border border-slate-100 text-center"><span className="block text-slate-400 text-xs">Diastolic</span><span className="font-bold text-slate-800">{displayFeatures.ap_lo || 'N/A'}</span></div>
-                            <div className="bg-white p-2 rounded-lg border border-slate-100 text-center"><span className="block text-slate-400 text-xs">Cholesterol</span><span className="font-bold text-slate-800">{displayFeatures.cholesterol || 'N/A'}</span></div>
-                            <div className="bg-white p-2 rounded-lg border border-slate-100 text-center"><span className="block text-slate-400 text-xs">Glucose</span><span className="font-bold text-slate-800">{displayFeatures.gluc || 'N/A'}</span></div>
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                                <div className="flex justify-between items-center text-sm mb-4">
+                                    <span className="text-slate-600 font-semibold flex items-center gap-1.5"><BrainCircuit size={16}/> AI Confidence</span>
+                                    <span className="font-bold text-slate-800 text-lg">{ocrConfidenceScore !== undefined ? `${(ocrConfidenceScore * 100).toFixed(1)}%` : 'N/A'}</span>
+                                </div>
+                                {ocrConfidenceScore !== undefined && (
+                                  <div className="w-full bg-slate-100 rounded-full h-2 mb-4">
+                                      <div className={`h-2 rounded-full ${displayPrediction === 1 ? 'bg-red-500' : 'bg-emerald-500'}`} style={{ width: `${ocrConfidenceScore * 100}%` }}></div>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-center">
+                                 <span className="text-slate-600 font-semibold flex items-center gap-1.5 mb-2"><ClipboardList size={16}/> AI Remarks</span>
+                                 <p className={`text-sm font-medium leading-relaxed ${displayPrediction === 1 ? 'text-red-700' : 'text-emerald-700'}`}>{aiDetails?.remarks || "No additional remarks generated."}</p>
+                              </div>
                           </div>
                         </div>
-                      )}
-                    </div>
+                     </div>
+
+                     {/* 🔥 NEW: ADVANCED NLP ANALYSIS SECTION 🔥 */}
+                     {nlpDetails && (
+                        <div className="mt-8 border-t border-slate-200 pt-8 animate-in fade-in slide-in-from-bottom-4">
+                           <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                             <BrainCircuit className="text-indigo-600" /> Advanced NLP Diagnostics Analysis
+                           </h3>
+                           
+                           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                              <div className="md:col-span-2 bg-indigo-50/50 rounded-2xl p-6 border border-indigo-100">
+                                  <h4 className="font-bold text-indigo-900 mb-3 flex items-center gap-2"><ClipboardList size={18}/> Clinical Summary</h4>
+                                  <p className="text-indigo-800/80 text-sm leading-relaxed">{nlpDetails.clinicalSummary}</p>
+                              </div>
+                              
+                              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col gap-4">
+                                  <div>
+                                      <span className="text-slate-500 text-xs font-bold uppercase tracking-wider block mb-1">CVD Risk (Framingham)</span>
+                                      <div className="flex items-end gap-2">
+                                          <span className="text-2xl font-black text-slate-800">{nlpDetails.framinghamCvdScore}%</span>
+                                          <span className={`text-sm font-bold mb-1 ${nlpDetails.cvdRiskLevel === 'High' ? 'text-rose-600' : nlpDetails.cvdRiskLevel === 'Intermediate' ? 'text-amber-500' : 'text-emerald-600'}`}>
+                                            ({nlpDetails.cvdRiskLevel})
+                                          </span>
+                                      </div>
+                                  </div>
+                                  <div className="w-full h-px bg-slate-100"></div>
+                                  <div>
+                                      <span className="text-slate-500 text-xs font-bold uppercase tracking-wider block mb-1">Stroke Risk Score</span>
+                                      <div className="flex items-end gap-2">
+                                          <span className="text-2xl font-black text-slate-800">{nlpDetails.framinghamStrokeScore}%</span>
+                                          <span className={`text-sm font-bold mb-1 ${nlpDetails.strokeRiskLevel === 'High' ? 'text-rose-600' : nlpDetails.strokeRiskLevel === 'Intermediate' ? 'text-amber-500' : 'text-emerald-600'}`}>
+                                            ({nlpDetails.strokeRiskLevel})
+                                          </span>
+                                      </div>
+                                  </div>
+                              </div>
+                           </div>
+
+                           {nlpDetails.verifiedResults && nlpDetails.verifiedResults.length > 0 && (
+                             <div>
+                                <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><ShieldCheck size={18} className="text-emerald-600"/> Verified Clinical Indicators</h4>
+                                <div className="grid grid-cols-1 gap-4">
+                                   {nlpDetails.verifiedResults.map((result: any, index: number) => (
+                                      <div key={index} className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+                                         <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                                            <h5 className="font-bold text-slate-800 text-base">{result.disease}</h5>
+                                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${result.llm_validation === 'VALID' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                                              {result.llm_validation}
+                                            </span>
+                                         </div>
+                                         <div className="bg-slate-50 rounded-lg p-4 text-sm text-slate-700 border border-slate-100 leading-relaxed mb-3">
+                                            <span className="font-semibold text-slate-900 block mb-1">AI Explanation:</span>
+                                            {result.final_explanation}
+                                         </div>
+                                         {result.retrieved_evidence && (
+                                            <p className="text-xs text-slate-500 italic flex gap-1.5 mt-2">
+                                               <span className="font-semibold not-italic text-slate-600">Evidence:</span> {result.retrieved_evidence}
+                                            </p>
+                                         )}
+                                      </div>
+                                   ))}
+                                </div>
+                             </div>
+                           )}
+                        </div>
+                     )}
                  </div>
                )}
             </div>
           )}
 
           {/* ========================================================= */}
-          {/* TAB 2: STROKE CONTENT (CT SCAN) */}
+          {/* TAB 2: STROKE CONTENT (UNCHANGED) */}
           {/* ========================================================= */}
           {activeTab === 'stroke' && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -332,18 +402,17 @@ export default function PatientDetailsPage() {
                    <BrainCircuit className="text-indigo-500" /> Stroke CT Scan Analysis
                  </h3>
                  
-                 {/* HISTORY DROPDOWN */}
                  {strokeHistory && strokeHistory.length > 0 && (
                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
                       <Calendar size={16} className="text-slate-400" />
                       <select 
                         value={selectedStrokeId || ''} 
                         onChange={(e) => setSelectedStrokeId(Number(e.target.value))}
-                        className="bg-transparent text-sm font-medium text-slate-700 outline-none cursor-pointer"
+                        className="bg-transparent text-sm font-medium text-slate-700 outline-none cursor-pointer w-full max-w-[200px]"
                       >
                         {strokeHistory.map((report: any) => (
                           <option key={report.strokereportid} value={report.strokereportid}>
-                            {formatDate(report.uploadedat)} - {report.filename.substring(0, 15)}...
+                            {formatDate(report.uploadedat)} {report.filename ? `- ${report.filename.substring(0, 15)}...` : ''}
                           </option>
                         ))}
                       </select>
@@ -437,7 +506,7 @@ export default function PatientDetailsPage() {
           )}
 
           {/* ========================================================= */}
-          {/* TAB 3: CADICA CONTENT (ANGIOGRAPHY) */}
+          {/* TAB 3: CADICA CONTENT (UNCHANGED) */}
           {/* ========================================================= */}
           {activeTab === 'cadica' && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -446,31 +515,22 @@ export default function PatientDetailsPage() {
                     <Video className="text-indigo-500" /> Angiography Scan Analysis
                   </h3>
                   
-                  {/* HISTORY DROPDOWN */}
-                  <div className="flex items-center gap-4">
-                      {cadicaResult?.modelname && (
-                        <span className="text-xs font-semibold bg-slate-100 text-slate-500 px-3 py-1 rounded-full">
-                          Model: {cadicaResult.modelname}
-                        </span>
-                      )}
-                      
-                      {cadicaHistory && cadicaHistory.length > 0 && (
-                       <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
-                          <Calendar size={16} className="text-slate-400" />
-                          <select 
-                            value={selectedCadicaId || ''} 
-                            onChange={(e) => setSelectedCadicaId(Number(e.target.value))}
-                            className="bg-transparent text-sm font-medium text-slate-700 outline-none cursor-pointer"
-                          >
-                            {cadicaHistory.map((report: any) => (
-                              <option key={report.cadicavideoreportid} value={report.cadicavideoreportid}>
-                                {formatDate(report.uploadedat)}
-                              </option>
-                            ))}
-                          </select>
-                       </div>
-                     )}
-                  </div>
+                  {cadicaHistory && cadicaHistory.length > 0 && (
+                   <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
+                      <Calendar size={16} className="text-slate-400" />
+                      <select 
+                        value={selectedCadicaId || ''} 
+                        onChange={(e) => setSelectedCadicaId(Number(e.target.value))}
+                        className="bg-transparent text-sm font-medium text-slate-700 outline-none cursor-pointer w-full max-w-[200px]"
+                      >
+                        {cadicaHistory.map((report: any) => (
+                          <option key={report.cadicavideoreportid} value={report.cadicavideoreportid}>
+                            {formatDate(report.uploadedat)}
+                          </option>
+                        ))}
+                      </select>
+                   </div>
+                 )}
                </div>
                
                {isCadicaLoading ? (
@@ -484,7 +544,6 @@ export default function PatientDetailsPage() {
                  </div>
                ) : (
                  <div className="space-y-8">
-                     
                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                         <div className="lg:col-span-5 space-y-6">
                             <div className={`${cadicaColorBg} border ${cadicaColorBorder} p-6 rounded-2xl`}>
@@ -555,11 +614,7 @@ export default function PatientDetailsPage() {
                                             <p className="text-sm">Image not available</p>
                                          </div>
                                        )}
-                                       <div className="absolute top-4 left-4 bg-black/60 backdrop-blur text-white text-sm font-bold px-4 py-2 rounded-lg border border-white/10 shadow-xl">
-                                          Video Source: <span className="text-indigo-300">{vid.video}</span>
-                                       </div>
                                     </div>
-
                                     <div className="p-6 sm:p-8 bg-white border-t border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
                                        <div className="flex items-center gap-4">
                                           <span className={`text-lg font-black px-5 py-2.5 rounded-xl border ${isVidLesion ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`}>
@@ -569,7 +624,6 @@ export default function PatientDetailsPage() {
                                             <Percent size={16} className="text-indigo-500"/> AI Weight: {vid.weight ? vid.weight.toFixed(3) : 'N/A'}
                                           </span>
                                        </div>
-                                       
                                        <div className="w-full sm:w-1/3">
                                            <div className="flex justify-between text-sm font-bold text-slate-700 mb-2">
                                                <span>Lesion Probability</span>
@@ -586,7 +640,6 @@ export default function PatientDetailsPage() {
                          </div>
                        </div>
                      )}
-
                  </div>
                )}
             </div>

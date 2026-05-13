@@ -1,8 +1,6 @@
-// public/firebase-messaging-sw.js
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
-// YAHAN APNI ASAL KEYS PASTE KARNA (Baghair NEXT_PUBLIC_ ke)
 firebase.initializeApp({
   apiKey: "AIzaSyB_FQpu0SSBXnmKckA8Gd7RO4CqTo_-gV8",
   authDomain: "ehad-fyp.firebaseapp.com",
@@ -14,13 +12,39 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+// Background logic
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message ', payload);
-  const notificationTitle = payload.notification.title || 'New Notification';
+  
+  // 🔥 FIX: Check both data and notification blocks for title/body
+  const notificationTitle = payload.data?.title || payload.notification?.title || '🩺 AI Diagnostic Alert';
   const notificationOptions = {
-    body: payload.notification.body || 'You have a new update.',
-    icon: '/favicon.ico' 
+    body: payload.data?.body || payload.notification?.body || 'New patient report update available.',
+    icon: '/favicon.ico', 
+    requireInteraction: true, // 🔥 Yeh OS ko force karega screen par dikhane ke liye
+    data: payload.data || {}
   };
 
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  return self.registration.showNotification(notificationTitle, notificationOptions);
+});
+
+self.addEventListener('notificationclick', (event) => {
+  console.log('[firebase-messaging-sw.js] Notification clicked!', event.notification.data);
+  event.notification.close(); 
+
+  const urlToOpen = self.location.origin + '/doctor/dashboard'; 
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (let i = 0; i < windowClients.length; i++) {
+        const client = windowClients[i];
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(urlToOpen);
+      }
+    })
+  );
 });

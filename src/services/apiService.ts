@@ -448,3 +448,54 @@ export const getDoctorPatientCadicaHistory = async (patientId: number): Promise<
 export const getDoctorPatientStrokeHistory = async (patientId: number): Promise<any> => {
   return fetchWithAuth(`/doctors/all-stroke-reports/${patientId}`, { method: 'GET' });
 };
+
+// ==========================================
+// DOCTOR DASHBOARD - NEW APIs
+// ==========================================
+
+export const getAssignedPatientsCount = async (doctorId: number): Promise<any> => {
+  return fetchWithAuth(`/doctors/assigned-patients-count/${doctorId}`, { method: 'GET' });
+};
+
+export const getAssignedCardioPatients = async (doctorId: number): Promise<any> => {
+  return fetchWithAuth(`/doctors/${doctorId}/assigned-cardio-patients/details?severity=all`, { method: 'GET' });
+};
+
+export const getAssignedStrokePatients = async (doctorId: number): Promise<any> => {
+  return fetchWithAuth(`/doctors/${doctorId}/assigned-stroke-patients/details?severity=all`, { method: 'GET' });
+};
+
+export const getAssignedCadicaPatients = async (doctorId: number): Promise<any> => {
+  return fetchWithAuth(`/doctors/${doctorId}/assigned-cadica-patients/details`, { method: 'GET' });
+};
+
+// ==========================================
+// SINGLE REPORT DETAILS APIs (For Notifications)
+// ==========================================
+
+export const getCardioReportDetails = async (reportId: number): Promise<any> => {
+  return fetchWithAuth(`/doctors/cardio-reports/${reportId}`, { method: 'GET' });
+};
+
+// Agar stroke ki single API pehle se nahi hai toh yeh add kar lo:
+export const getStrokeReportDetails = async (strokeReportId: number): Promise<any> => {
+  return fetchWithAuth(`/doctors/stroke-reports/${strokeReportId}`, { method: 'GET' });
+};
+
+// ==========================================
+// ADMIN PROFILE API
+// ==========================================
+export const getAdminProfile = async (adminId: number): Promise<any> => {
+  return fetchWithAuth(`/admin/get-profile/${adminId}`, {
+    method: 'GET',
+  });
+};
+
+// ==========================================
+// DOCTOR PROFILE API
+// ==========================================
+export const getDoctorProfileData = async (doctorId: number): Promise<any> => {
+  return fetchWithAuth(`/doctors/get-profile/${doctorId}`, {
+    method: 'GET',
+  });
+};

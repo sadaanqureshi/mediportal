@@ -6,19 +6,16 @@ import { AppDispatch, RootState } from '@/lib/store/store';
 import { saveDoctorFcmToken } from '@/lib/store/features/doctorSlice';
 import toast from 'react-hot-toast';
 import { AlertCircle } from 'lucide-react';
-import { messaging, getToken, onMessage } from '@/lib/firebase'; // Path verify karlena
+import { messaging, getToken, onMessage } from '@/lib/firebase'; 
 
 export default function GlobalNotificationListener() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
   
-  // Redux se current user nikaalo
   const { user } = useSelector((state: RootState) => state.auth);
 
   useEffect(() => {
-    // Check karo ke kya user login hai aur wo doctor hai
     const actualDoctorId = user?.id || user?.sub || user?.doctorid;
-    // Agar doctor ki specialization/doctorid nahi hai toh yeh listener band rahay ga
     const isDoctor = user && (user.role === 'doctor' || user.doctorid || user.specialization);
 
     if (!isDoctor || !actualDoctorId) return;
@@ -47,12 +44,19 @@ export default function GlobalNotificationListener() {
     // --- 2. LISTEN FOR NOTIFICATIONS GLOBALLY ---
     if (messaging) {
       const unsubscribe = onMessage(messaging, (payload) => {
+        console.log("Notification Payload: ", payload);
+        
+        // 🔥 FIX: Dono blocks (data aur notification) se values read karo
         const newNotif = {
           id: Math.random().toString(36).substr(2, 9),
-          title: payload.notification?.title || 'New Notification',
-          desc: payload.notification?.body || 'You have a new update.',
+          title: payload.data?.title || payload.notification?.title || 'New Notification',
+          desc: payload.data?.body || payload.notification?.body || 'You have a new update.',
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          type: 'info'
+          type: 'info',
+          patientId: payload.data?.patientId || null,
+          patientName: payload.data?.patientName || null,
+          modelName: payload.data?.modelName || null,
+          reportId: payload.data?.reportId || null,
         };
 
         // VISUAL POP-UP (Toast)
@@ -61,7 +65,7 @@ export default function GlobalNotificationListener() {
             className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white shadow-lg rounded-xl pointer-events-auto flex ring-1 ring-black ring-opacity-5 cursor-pointer border-l-4 border-indigo-500`}
             onClick={() => {
               toast.dismiss(t.id);
-              router.push('/doctor-dashboard'); 
+              router.push('/doctor/dashboard'); 
             }}
           >
             <div className="flex-1 w-0 p-4">
@@ -78,15 +82,12 @@ export default function GlobalNotificationListener() {
           </div>
         ), { duration: 6000, position: 'top-right' });
 
-        // 3. User-Specific LocalStorage (Mixup khatam)
         const storageKey = `doctor_notifications_${actualDoctorId}`;
         const saved = localStorage.getItem(storageKey);
         const prevNotifs = saved ? JSON.parse(saved) : [];
         const updatedNotifs = [newNotif, ...prevNotifs];
         
         localStorage.setItem(storageKey, JSON.stringify(updatedNotifs));
-
-        // 4. Custom event fire karo taake Notifications page foran update ho jaye
         window.dispatchEvent(new Event('new_notification'));
       });
 

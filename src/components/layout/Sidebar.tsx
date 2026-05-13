@@ -46,9 +46,11 @@ const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
       { name: 'Manage Doctors', href: '/admin/doctors', icon: Stethoscope },
       { name: 'Manage Patients', href: '/admin/patients', icon: Users },
       { name: 'Manage Radiologists', href: '/admin/radiologists', icon: Activity },
+      { name: 'Profile', href: '/admin/profile', icon: User },
     ],
     doctor: [
       { name: 'Dashboard', href: '/doctor/dashboard', icon: LayoutDashboard },
+      { name: 'Assigned Patients', href: '/doctor/patients', icon: Users },
       { name: 'Notifications', href: '/doctor/notifications', icon: Bell },
       { name: 'Profile', href: '/doctor/profile', icon: User },
     ],
