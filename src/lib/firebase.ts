@@ -1,6 +1,5 @@
-// src/lib/firebase.ts
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getMessaging, getToken, onMessage } from "firebase/messaging";
+import { getMessaging, getToken, onMessage, isSupported } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -14,14 +13,19 @@ const firebaseConfig = {
 // Initialize Firebase only if it hasn't been initialized already
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-let messaging: any;
-
-if (typeof window !== "undefined") {
-  try {
-    messaging = getMessaging(app);
-  } catch (err) {
-    console.error("Firebase Messaging Error:", err);
+// 🔥 ASYNC FUNCTION: Yeh ensure karega ke browser pehle check ho phir messaging on ho
+export const getFirebaseMessaging = async () => {
+  if (typeof window !== "undefined") {
+    try {
+      const supported = await isSupported();
+      if (supported) {
+        return getMessaging(app);
+      }
+    } catch (err) {
+      console.error("❌ Firebase Messaging Error:", err);
+    }
   }
-}
+  return null;
+};
 
-export { messaging, getToken, onMessage };
+export { getToken, onMessage };
